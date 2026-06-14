@@ -1,0 +1,10 @@
+venv/
+database.db
+uploads/images/*
+uploads/documents/*
+uploads/videos/*
+uploads/audio/*
+uploads/others/*
+__pycache__/
+*.pyc
+.env

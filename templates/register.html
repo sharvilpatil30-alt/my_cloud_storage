@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Register — Sharvil's Cloud</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;background:#f0f2f5;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+    .card{background:white;border-radius:16px;padding:40px 36px;width:100%;max-width:380px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+    .logo{text-align:center;font-size:34px;margin-bottom:8px}
+    h2{text-align:center;font-size:20px;color:#2c2c2a;margin-bottom:4px}
+    .subtitle{text-align:center;font-size:13px;color:#888;margin-bottom:24px}
+    label{display:block;font-size:11px;font-weight:700;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+    input{width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:14px;outline:none;transition:border-color .2s}
+    input:focus{border-color:#7f77dd}
+    input:disabled{background:#f5f5f5;cursor:not-allowed}
+    button{width:100%;padding:12px;background:#3c3489;color:white;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;transition:background .2s}
+    button:hover:not(:disabled){background:#7f77dd}
+    button:disabled{background:#ccc;cursor:not-allowed}
+    .error{background:#fce8e8;color:#a32d2d;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;text-align:center}
+    .slots{background:#e1f5ee;color:#0f6e56;padding:8px 14px;border-radius:8px;font-size:12px;margin-bottom:14px;text-align:center}
+    .back{text-align:center;margin-top:18px;font-size:13px;color:#aaa}
+    .back a{color:#3c3489;font-weight:600;text-decoration:none}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">☁</div>
+    <h2>Create Account</h2>
+    <p class="subtitle">Join Sharvil's Cloud Storage</p>
+
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+
+    {% if not disabled %}
+    <div class="slots">{{ slots_left }} registration slot{{ 's' if slots_left != 1 else '' }} remaining</div>
+    {% endif %}
+
+    <form method="POST">
+      <label>Username</label>
+      <input type="text" name="username" placeholder="Choose a username" {% if disabled %}disabled{% endif %} required minlength="3"/>
+
+      <label>Password</label>
+      <input type="password" name="password" placeholder="At least 6 characters" {% if disabled %}disabled{% endif %} required minlength="6"/>
+
+      <label>Confirm Password</label>
+      <input type="password" name="confirm" placeholder="Repeat your password" {% if disabled %}disabled{% endif %} required/>
+
+      <button type="submit" {% if disabled %}disabled{% endif %}>
+        {% if disabled %}Registration Closed{% else %}Create Account →{% endif %}
+      </button>
+    </form>
+
+    <div class="back">Already have an account? <a href="/login">Sign In</a></div>
+  </div>
+</body>
+</html>

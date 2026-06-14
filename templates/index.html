@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sharvil's Cloud Storage</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;background:#f0f2f5;color:#2c2c2a;min-height:100vh;display:flex;flex-direction:column}
+    header{background:#1a1560;color:white;padding:0 24px;height:58px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.25)}
+    .logo{font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px;min-width:180px;letter-spacing:-.3px}
+    .search-wrap{flex:1;max-width:460px;position:relative}
+    .search-wrap input{width:100%;padding:8px 16px 8px 36px;border-radius:8px;border:none;background:rgba(255,255,255,.13);color:white;font-size:13px;outline:none}
+    .search-wrap input::placeholder{color:rgba(255,255,255,.5)}
+    .search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:12px;pointer-events:none}
+    .hdr-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+    .avatar{width:32px;height:32px;border-radius:50%;background:#7f77dd;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:white}
+    .username{font-size:13px;opacity:.9}
+    .btn-logout{font-size:12px;color:white;background:rgba(255,255,255,.14);padding:6px 13px;border-radius:6px;text-decoration:none;border:none;cursor:pointer}
+    .btn-logout:hover{background:rgba(255,255,255,.26)}
+    .layout{display:flex;flex:1;min-height:0}
+    aside{width:220px;background:white;padding:16px 10px;border-right:1px solid #e8e6df;flex-shrink:0;position:sticky;top:58px;height:calc(100vh - 58px);overflow-y:auto;display:flex;flex-direction:column}
+    .sidebar-label{font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.07em;padding:6px 10px 4px}
+    .nav-btn{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;cursor:pointer;font-size:13px;color:#555;transition:background .15s;border:none;background:none;width:100%;text-align:left;margin-bottom:2px}
+    .nav-btn:hover{background:#f0f2f5}
+    .nav-btn.active{background:#eeedfe;color:#3c3489;font-weight:600}
+    .nav-icon{font-size:15px;width:20px;text-align:center}
+    .nav-count{margin-left:auto;font-size:11px;background:#eee;padding:2px 7px;border-radius:99px;color:#888}
+    .nav-btn.active .nav-count{background:#d8d6f8;color:#3c3489}
+    .divider{height:1px;background:#f0ede5;margin:10px 8px}
+    .stor-widget{margin:auto 8px 8px;padding:14px;background:#f8f8f6;border-radius:10px}
+    .stor-widget h4{font-size:10px;color:#aaa;margin-bottom:8px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+    .stor-bar{height:7px;background:#e4e2da;border-radius:4px;overflow:hidden;margin-bottom:7px}
+    .stor-fill{height:100%;background:linear-gradient(90deg,#3c3489,#7f77dd);border-radius:4px;transition:width .6s}
+    .stor-info{display:flex;justify-content:space-between;font-size:11px;color:#aaa}
+    .stor-used{font-weight:700;color:#3c3489}
+    main{flex:1;padding:26px 30px;min-width:0;overflow-y:auto}
+    .cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px}
+    .cat-card{background:white;border-radius:12px;padding:18px 16px;cursor:pointer;transition:box-shadow .2s,transform .15s,border-color .15s;border:2px solid transparent}
+    .cat-card:hover{box-shadow:0 4px 18px rgba(0,0,0,.08);transform:translateY(-2px)}
+    .cat-card.active{border-color:#7f77dd}
+    .cat-emoji{font-size:28px;margin-bottom:8px}
+    .cat-name{font-size:13px;font-weight:600;color:#2c2c2a;margin-bottom:2px}
+    .cat-sub{font-size:11px;color:#aaa}
+    .upload-zone{background:white;border:2px dashed #c8c5f0;border-radius:12px;padding:30px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:22px}
+    .upload-zone:hover,.upload-zone.over{border-color:#7f77dd;background:#eeedfe}
+    .upl-icon{font-size:28px;margin-bottom:8px}
+    .upload-zone p{font-size:13px;color:#999}
+    .upload-zone b{color:#3c3489;cursor:pointer}
+    #file-input{display:none}
+    .prog-wrap{display:none;background:white;border-radius:10px;padding:13px 18px;margin-bottom:14px}
+    .prog-label{font-size:12px;color:#666;margin-bottom:6px}
+    .prog-bar{height:6px;background:#eee;border-radius:3px;overflow:hidden}
+    .prog-fill{height:100%;background:#7f77dd;width:0%;transition:width .25s;border-radius:3px}
+    .sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+    .sec-head h2{font-size:15px;font-weight:600}
+    .sec-count{font-size:12px;color:#aaa}
+    .file-card{background:white;border-radius:10px;padding:13px 18px;margin-bottom:8px;display:flex;align-items:center;gap:14px;transition:box-shadow .18s}
+    .file-card:hover{box-shadow:0 2px 14px rgba(0,0,0,.07)}
+    .ftype-icon{width:44px;height:44px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:white;flex-shrink:0}
+    .finfo{flex:1;min-width:0}
+    .fname{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px}
+    .fmeta{font-size:11px;color:#aaa;display:flex;flex-wrap:wrap;gap:10px}
+    .factions{display:flex;gap:8px;flex-shrink:0}
+    .btn{padding:6px 14px;border-radius:7px;font-size:12px;font-weight:500;border:none;cursor:pointer;transition:opacity .18s;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+    .btn:hover{opacity:.78}
+    .btn-dl{background:#eeedfe;color:#3c3489}
+    .btn-del{background:#fce8e8;color:#a32d2d}
+    .empty-state{text-align:center;padding:56px 20px;color:#ccc}
+    .empty-state div{font-size:36px;margin-bottom:10px}
+    .empty-state p{font-size:13px}
+    #toast{position:fixed;bottom:24px;right:24px;background:#1d9e75;color:white;padding:11px 20px;border-radius:9px;font-size:13px;font-weight:500;opacity:0;transform:translateY(10px);transition:all .25s;pointer-events:none;z-index:999}
+    #toast.err{background:#e24b4a}
+    #toast.show{opacity:1;transform:translateY(0)}
+    @media(max-width:900px){.cat-grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:680px){
+      .layout{flex-direction:column}
+      aside{width:100%;height:auto;position:static;flex-direction:row;flex-wrap:wrap;padding:8px;gap:4px;border-right:none;border-bottom:1px solid #e8e6df}
+      .sidebar-label{display:none}
+      .nav-btn{width:auto;padding:6px 10px;font-size:11px}
+      .stor-widget{display:none}
+      main{padding:14px}
+      .cat-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+      header{padding:0 12px;gap:8px}
+      .logo{font-size:14px;min-width:unset}
+      .username{display:none}
+      .factions{flex-direction:column;gap:4px}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">☁ Sharvil's Cloud</div>
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input id="search-input" type="text" placeholder="Search files..." oninput="applyFilter()"/>
+  </div>
+  <div class="hdr-right">
+    <div class="avatar">{{ username[0].upper() }}</div>
+    <span class="username">{{ username }}</span>
+    <a href="/logout" class="btn-logout">Logout</a>
+  </div>
+</header>
+
+<div class="layout">
+  <aside>
+    <div class="sidebar-label">My Storage</div>
+    <button class="nav-btn active" onclick="setCategory('all',this)">
+      <span class="nav-icon">🗂</span> All Files
+      <span class="nav-count" id="cnt-all">0</span>
+    </button>
+    <button class="nav-btn" onclick="setCategory('images',this)">
+      <span class="nav-icon">🖼</span> Pictures
+      <span class="nav-count" id="cnt-images">0</span>
+    </button>
+    <button class="nav-btn" onclick="setCategory('documents',this)">
+      <span class="nav-icon">📄</span> Documents
+      <span class="nav-count" id="cnt-documents">0</span>
+    </button>
+    <button class="nav-btn" onclick="setCategory('videos',this)">
+      <span class="nav-icon">🎬</span> Videos
+      <span class="nav-count" id="cnt-videos">0</span>
+    </button>
+    <button class="nav-btn" onclick="setCategory('audio',this)">
+      <span class="nav-icon">🎵</span> Audio
+      <span class="nav-count" id="cnt-audio">0</span>
+    </button>
+    <button class="nav-btn" onclick="setCategory('others',this)">
+      <span class="nav-icon">📦</span> Others
+      <span class="nav-count" id="cnt-others">0</span>
+    </button>
+    <div class="divider"></div>
+    <div class="stor-widget">
+      <h4>Storage Used</h4>
+      <div class="stor-bar"><div class="stor-fill" id="stor-fill" style="width:0%"></div></div>
+      <div class="stor-info">
+        <span class="stor-used" id="stor-used">0 B</span>
+        <span id="stor-pct">0% of 100 GB</span>
+      </div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="cat-grid">
+      <div class="cat-card" id="cc-images" onclick="setCategory('images',document.querySelectorAll('.nav-btn')[1],this)">
+        <div class="cat-emoji">🖼</div>
+        <div class="cat-name">Pictures</div>
+        <div class="cat-sub" id="ccs-images">0 files</div>
+      </div>
+      <div class="cat-card" id="cc-documents" onclick="setCategory('documents',document.querySelectorAll('.nav-btn')[2],this)">
+        <div class="cat-emoji">📄</div>
+        <div class="cat-name">Documents</div>
+        <div class="cat-sub" id="ccs-documents">0 files</div>
+      </div>
+      <div class="cat-card" id="cc-videos" onclick="setCategory('videos',document.querySelectorAll('.nav-btn')[3],this)">
+        <div class="cat-emoji">🎬</div>
+        <div class="cat-name">Videos</div>
+        <div class="cat-sub" id="ccs-videos">0 files</div>
+      </div>
+      <div class="cat-card" id="cc-audio" onclick="setCategory('audio',document.querySelectorAll('.nav-btn')[4],this)">
+        <div class="cat-emoji">🎵</div>
+        <div class="cat-name">Audio</div>
+        <div class="cat-sub" id="ccs-audio">0 files</div>
+      </div>
+    </div>
+
+    <div class="upload-zone" id="drop-zone">
+      <div class="upl-icon">☁</div>
+      <p>Drag & drop files here, or <b onclick="document.getElementById('file-input').click()">browse to upload</b></p>
+      <p style="font-size:11px;color:#ccc;margin-top:4px">Max 16 MB · Auto-sorted by type</p>
+      <input type="file" id="file-input" multiple/>
+    </div>
+
+    <div class="prog-wrap" id="prog-wrap">
+      <div class="prog-label" id="prog-label">Uploading...</div>
+      <div class="prog-bar"><div class="prog-fill" id="prog-fill"></div></div>
+    </div>
+
+    <div class="sec-head">
+      <h2 id="sec-title">All Files</h2>
+      <span class="sec-count" id="sec-count"></span>
+    </div>
+    <div id="file-list"></div>
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  let allFiles = [];
+  let activeCategory = 'all';
+
+  const TITLES = {all:'All Files',images:'Pictures',documents:'Documents',videos:'Videos',audio:'Audio',others:'Others'};
+  const TYPE_COLOR = {
+    PDF:'#e24b4a',DOC:'#185fa5',DOCX:'#185fa5',TXT:'#888780',
+    XLS:'#3b6d11',XLSX:'#3b6d11',CSV:'#3b6d11',PPTX:'#c45c1a',
+    PNG:'#854f0b',JPG:'#854f0b',JPEG:'#854f0b',GIF:'#854f0b',WEBP:'#854f0b',SVG:'#854f0b',
+    MP4:'#993556',MOV:'#993556',AVI:'#993556',MKV:'#993556',
+    MP3:'#3b5998',WAV:'#3b5998',AAC:'#3b5998',FLAC:'#3b5998',
+    ZIP:'#5f5e5a',RAR:'#5f5e5a',
+    JS:'#534ab7',PY:'#185fa5',HTML:'#993556',CSS:'#185fa5',
+  };
+
+  function fmt(b){
+    if(b<1024) return b+' B';
+    if(b<1048576) return (b/1024).toFixed(1)+' KB';
+    return (b/1048576).toFixed(2)+' MB';
+  }
+
+  function toast(msg,err=false){
+    const t=document.getElementById('toast');
+    t.textContent=msg;
+    t.className=err?'err show':'show';
+    setTimeout(()=>t.className='',2800);
+  }
+
+  function updateSidebar(files){
+    const cats=['images','documents','videos','audio','others'];
+    document.getElementById('cnt-all').textContent=files.length;
+    cats.forEach(c=>{
+      const n=files.filter(f=>f.category===c).length;
+      document.getElementById('cnt-'+c).textContent=n;
+      const ccs=document.getElementById('ccs-'+c);
+      if(ccs) ccs.textContent=n+' file'+(n!==1?'s':'');
+    });
+    const total=files.reduce((s,f)=>s+f.size,0);
+    const max=100*1024*1024*1024;
+    const pct=Math.min((total/max)*100,100);
+    document.getElementById('stor-fill').style.width=pct.toFixed(4)+'%';
+    document.getElementById('stor-used').textContent=fmt(total);
+    document.getElementById('stor-pct').textContent=pct.toFixed(3)+'% of 100 GB';
+  }
+
+  function renderFiles(files){
+    const list=document.getElementById('file-list');
+    const count=document.getElementById('sec-count');
+    if(count) count.textContent=files.length+' file'+(files.length!==1?'s':'');
+    if(!files.length){
+      list.innerHTML='<div class="empty-state"><div>☁</div><p>No files here yet — upload something!</p></div>';
+      return;
+    }
+    list.innerHTML=files.map(f=>`
+      <div class="file-card">
+        <div class="ftype-icon" style="background:${TYPE_COLOR[f.file_type]||'#7f77dd'}">
+          ${f.file_type.slice(0,3)}
+        </div>
+        <div class="finfo">
+          <div class="fname">${f.filename}</div>
+          <div class="fmeta">
+            <span>📦 ${fmt(f.size)}</span>
+            <span>🏷 ${f.file_type}</span>
+            <span>📁 ${f.category}</span>
+            <span>🕒 ${f.uploaded_at}</span>
+            <span>👤 ${f.uploaded_by}</span>
+          </div>
+        </div>
+        <div class="factions">
+          <a href="/download/${f.category}/${encodeURIComponent(f.filename)}" class="btn btn-dl">⬇ Download</a>
+          <button class="btn btn-del" onclick="deleteFile('${f.category}','${f.filename}')">✕ Delete</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function applyFilter(){
+    const q=document.getElementById('search-input').value.toLowerCase();
+    let filtered=activeCategory==='all'?allFiles:allFiles.filter(f=>f.category===activeCategory);
+    if(q) filtered=filtered.filter(f=>f.filename.toLowerCase().includes(q));
+    const st=document.getElementById('sec-title');
+    if(st) st.textContent=TITLES[activeCategory]||'Files';
+    renderFiles(filtered);
+  }
+
+  function setCategory(cat,navEl,catEl){
+    activeCategory=cat;
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.cat-card').forEach(c=>c.classList.remove('active'));
+    if(navEl) navEl.classList.add('active');
+    if(catEl) catEl.classList.add('active');
+    applyFilter();
+  }
+
+  async function loadFiles(){
+    try{
+      const res=await fetch('/files');
+      if(!res.ok) throw new Error('Server error '+res.status);
+      const data=await res.json();
+      allFiles=data.files||[];
+      updateSidebar(allFiles);
+      applyFilter();
+    }catch(e){
+      console.error(e);
+      toast('Failed to load files: '+e.message, true);
+    }
+  }
+
+  async function uploadFile(file){
+    const wrap=document.getElementById('prog-wrap');
+    const fill=document.getElementById('prog-fill');
+    const label=document.getElementById('prog-label');
+    wrap.style.display='block';
+    label.textContent='Uploading '+file.name+'...';
+    fill.style.width='0%';
+    let p=0;
+    const iv=setInterval(()=>{p=Math.min(p+7,85);fill.style.width=p+'%';},90);
+    const form=new FormData();
+    form.append('file',file);
+    try{
+      const res=await fetch('/upload',{method:'POST',body:form});
+      const data=await res.json();
+      clearInterval(iv);
+      fill.style.width='100%';
+      setTimeout(()=>{wrap.style.display='none';fill.style.width='0%';},500);
+      if(res.ok){toast('✓ '+file.name+' → '+data.category);loadFiles();}
+      else toast(data.error||'Upload failed',true);
+    }catch(e){
+      clearInterval(iv);
+      wrap.style.display='none';
+      toast('Upload failed',true);
+    }
+  }
+
+  async function deleteFile(category,filename){
+    if(!confirm('Delete "'+filename+'"?')) return;
+    const res=await fetch('/delete/'+category+'/'+encodeURIComponent(filename),{method:'DELETE'});
+    const data=await res.json();
+    if(res.ok){toast('✓ Deleted '+filename);loadFiles();}
+    else toast(data.error||'Delete failed',true);
+  }
+
+  const dz=document.getElementById('drop-zone');
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+  dz.addEventListener('drop',e=>{
+    e.preventDefault();dz.classList.remove('over');
+    [...e.dataTransfer.files].forEach(uploadFile);
+  });
+  document.getElementById('file-input').addEventListener('change',e=>{
+    [...e.target.files].forEach(uploadFile);
+    e.target.value='';
+  });
+
+  loadFiles();
+</script>
+</body>
+</html>
