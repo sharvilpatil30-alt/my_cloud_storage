@@ -7,11 +7,30 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 
 app = Flask(__name__)
-app.secret_key = 'sharvil-cloud-secret-2025'
+app.secret_key = os.environ.get('SECRET_KEY', 'sharvil-cloud-secret-2025')
 
 UPLOAD_FOLDER = 'uploads'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 MAX_EXTRA_USERS = 5
+
+# 2GB global max (for videos)
+app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024
+
+# Per category size limits
+CATEGORY_LIMITS = {
+    'images':    50  * 1024 * 1024,
+    'videos':    2   * 1024 * 1024 * 1024,
+    'audio':     100 * 1024 * 1024,
+    'documents': 100 * 1024 * 1024,
+    'others':    100 * 1024 * 1024,
+}
+
+CATEGORY_LIMIT_LABELS = {
+    'images':    '50 MB',
+    'videos':    '2 GB',
+    'audio':     '100 MB',
+    'documents': '100 MB',
+    'others':    '100 MB',
+}
 
 CATEGORY_MAP = {
     'images':    ['jpg','jpeg','png','gif','webp','svg'],
@@ -20,7 +39,6 @@ CATEGORY_MAP = {
     'audio':     ['mp3','wav','aac','flac','ogg'],
 }
 
-# Create upload subfolders
 for cat in ['images','documents','videos','audio','others']:
     os.makedirs(os.path.join(UPLOAD_FOLDER, cat), exist_ok=True)
 
@@ -60,8 +78,6 @@ def init_db():
         )
     ''')
     conn.commit()
-
-    # Seed default admin if not exists
     existing = conn.execute("SELECT * FROM users WHERE username='sharvil'").fetchone()
     if not existing:
         conn.execute(
@@ -69,11 +85,9 @@ def init_db():
             ('sharvil', generate_password_hash('sharvil123'), 1, datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
         )
         conn.commit()
-
     conn.close()
 
 def sync_files_to_db():
-    """Scan upload folders and add any files missing from DB."""
     conn = get_db()
     for cat in ['images','documents','videos','audio','others']:
         folder = os.path.join(UPLOAD_FOLDER, cat)
@@ -98,7 +112,7 @@ def sync_files_to_db():
     conn.close()
 
 init_db()
-sync_files_to_db()  # ← fixes empty file list on restart
+sync_files_to_db()
 
 # ── Auth ──────────────────────────────────────────────────────────
 def login_required(f):
@@ -128,17 +142,14 @@ def login():
 def register():
     conn = get_db()
     extra_count = conn.execute("SELECT COUNT(*) FROM users WHERE is_admin=0").fetchone()[0]
-
     if extra_count >= MAX_EXTRA_USERS:
         conn.close()
-        return render_template('register.html', error='Registration is closed. Maximum accounts reached.', disabled=True)
-
+        return render_template('register.html', error='Registration is closed.', disabled=True)
     error = None
     if request.method == 'POST':
         username = request.form.get('username','').strip()
         password = request.form.get('password','')
         confirm  = request.form.get('confirm','')
-
         if not username or not password:
             error = 'Username and password are required'
         elif len(username) < 3:
@@ -159,7 +170,6 @@ def register():
                 conn.commit()
                 conn.close()
                 return redirect(url_for('login'))
-
     conn.close()
     slots_left = MAX_EXTRA_USERS - extra_count
     return render_template('register.html', error=error, disabled=False, slots_left=slots_left)
@@ -169,11 +179,16 @@ def logout():
     session.pop('username', None)
     return redirect(url_for('login'))
 
-# ── Main ──────────────────────────────────────────────────────────
+# ── Main routes ───────────────────────────────────────────────────
 @app.route('/')
 @login_required
 def home():
     return render_template('index.html', username=session['username'])
+
+@app.after_request
+def add_ngrok_header(response):
+    response.headers['ngrok-skip-browser-warning'] = 'true'
+    return response
 
 @app.route('/upload', methods=['POST'])
 @login_required
@@ -187,19 +202,29 @@ def upload_file():
     category    = get_category(file.filename)
     folder_path = os.path.join(UPLOAD_FOLDER, category)
     file_path   = os.path.join(folder_path, file.filename)
-    file.save(file_path)
 
-    size        = os.path.getsize(file_path)
+    file_data = file.read()
+    file_size = len(file_data)
+
+    limit = CATEGORY_LIMITS.get(category, 100 * 1024 * 1024)
+    label = CATEGORY_LIMIT_LABELS.get(category, '100 MB')
+    if file_size > limit:
+        return jsonify({
+            'error': f'{category.capitalize()} files are limited to {label}. Your file is {round(file_size/(1024*1024), 1)} MB.'
+        }), 413
+
+    with open(file_path, 'wb') as f:
+        f.write(file_data)
+
     file_type   = file.filename.rsplit('.', 1)[-1].upper() if '.' in file.filename else 'UNKNOWN'
     uploaded_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     uploaded_by = session['username']
 
     conn = get_db()
-    # Remove old record if exists (re-upload)
     conn.execute("DELETE FROM files WHERE filename=? AND category=?", (file.filename, category))
     conn.execute(
         "INSERT INTO files (filename, size, file_type, category, uploaded_at, uploaded_by) VALUES (?,?,?,?,?,?)",
-        (file.filename, size, file_type, category, uploaded_at, uploaded_by)
+        (file.filename, file_size, file_type, category, uploaded_at, uploaded_by)
     )
     conn.commit()
     conn.close()
@@ -207,7 +232,7 @@ def upload_file():
     return jsonify({
         'message':     'Uploaded!',
         'filename':    file.filename,
-        'size':        size,
+        'size':        file_size,
         'file_type':   file_type,
         'category':    category,
         'uploaded_at': uploaded_at,
@@ -226,7 +251,6 @@ def list_files():
             'SELECT * FROM files WHERE category=? ORDER BY uploaded_at DESC', (category,)
         ).fetchall()
     conn.close()
-
     files = []
     for row in rows:
         path = os.path.join(UPLOAD_FOLDER, row['category'], row['filename'])
