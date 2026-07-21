@@ -8,7 +8,7 @@
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:Arial,sans-serif;background:#f0f2f5;color:#2c2c2a;min-height:100vh;display:flex;flex-direction:column}
     header{background:#1a1560;color:white;padding:0 24px;height:58px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.25)}
-    .logo{font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px;min-width:180px;letter-spacing:-.3px}
+    .logo{font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px;min-width:180px}
     .search-wrap{flex:1;max-width:460px;position:relative}
     .search-wrap input{width:100%;padding:8px 16px 8px 36px;border-radius:8px;border:none;background:rgba(255,255,255,.13);color:white;font-size:13px;outline:none}
     .search-wrap input::placeholder{color:rgba(255,255,255,.5)}
@@ -58,6 +58,7 @@
     .file-card{background:white;border-radius:10px;padding:13px 18px;margin-bottom:8px;display:flex;align-items:center;gap:14px;transition:box-shadow .18s}
     .file-card:hover{box-shadow:0 2px 14px rgba(0,0,0,.07)}
     .ftype-icon{width:44px;height:44px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:white;flex-shrink:0}
+    .thumb{width:44px;height:44px;border-radius:9px;object-fit:cover;cursor:pointer;flex-shrink:0}
     .finfo{flex:1;min-width:0}
     .fname{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px}
     .fmeta{font-size:11px;color:#aaa;display:flex;flex-wrap:wrap;gap:10px}
@@ -72,24 +73,13 @@
     #toast{position:fixed;bottom:24px;right:24px;background:#1d9e75;color:white;padding:11px 20px;border-radius:9px;font-size:13px;font-weight:500;opacity:0;transform:translateY(10px);transition:all .25s;pointer-events:none;z-index:999}
     #toast.err{background:#e24b4a}
     #toast.show{opacity:1;transform:translateY(0)}
+    .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center}
+    .modal-close{position:absolute;top:20px;right:20px;color:white;font-size:28px;cursor:pointer;background:none;border:none}
     @media(max-width:900px){.cat-grid{grid-template-columns:repeat(2,1fr)}}
-    @media(max-width:680px){
-      .layout{flex-direction:column}
-      aside{width:100%;height:auto;position:static;flex-direction:row;flex-wrap:wrap;padding:8px;gap:4px;border-right:none;border-bottom:1px solid #e8e6df}
-      .sidebar-label{display:none}
-      .nav-btn{width:auto;padding:6px 10px;font-size:11px}
-      .stor-widget{display:none}
-      main{padding:14px}
-      .cat-grid{grid-template-columns:repeat(2,1fr);gap:10px}
-      header{padding:0 12px;gap:8px}
-      .logo{font-size:14px;min-width:unset}
-      .username{display:none}
-      .factions{flex-direction:column;gap:4px}
-    }
+    @media(max-width:680px){.layout{flex-direction:column}aside{width:100%;height:auto;position:static;flex-direction:row;flex-wrap:wrap;padding:8px;gap:4px;border-right:none;border-bottom:1px solid #e8e6df}.sidebar-label{display:none}.nav-btn{width:auto;padding:6px 10px;font-size:11px}.stor-widget{display:none}main{padding:14px}.cat-grid{grid-template-columns:repeat(2,1fr);gap:10px}header{padding:0 12px;gap:8px}.logo{font-size:14px;min-width:unset}.username{display:none}.factions{flex-direction:column;gap:4px}}
   </style>
 </head>
 <body>
-
 <header>
   <div class="logo">☁ Sharvil's Cloud</div>
   <div class="search-wrap">
@@ -102,7 +92,6 @@
     <a href="/logout" class="btn-logout">Logout</a>
   </div>
 </header>
-
 <div class="layout">
   <aside>
     <div class="sidebar-label">My Storage</div>
@@ -140,7 +129,6 @@
       </div>
     </div>
   </aside>
-
   <main>
     <div class="cat-grid">
       <div class="cat-card" id="cc-images" onclick="setCategory('images',document.querySelectorAll('.nav-btn')[1],this)">
@@ -164,19 +152,16 @@
         <div class="cat-sub" id="ccs-audio">0 files</div>
       </div>
     </div>
-
     <div class="upload-zone" id="drop-zone">
       <div class="upl-icon">☁</div>
       <p>Drag & drop files here, or <b onclick="document.getElementById('file-input').click()">browse to upload</b></p>
-      <p style="font-size:11px;color:#ccc;margin-top:4px">Max 16 MB · Auto-sorted by type</p>
+      <p style="font-size:11px;color:#ccc;margin-top:4px">Images 50MB · Videos 2GB · Audio 100MB · Docs 100MB</p>
       <input type="file" id="file-input" multiple/>
     </div>
-
     <div class="prog-wrap" id="prog-wrap">
       <div class="prog-label" id="prog-label">Uploading...</div>
       <div class="prog-bar"><div class="prog-fill" id="prog-fill"></div></div>
     </div>
-
     <div class="sec-head">
       <h2 id="sec-title">All Files</h2>
       <span class="sec-count" id="sec-count"></span>
@@ -184,29 +169,17 @@
     <div id="file-list"></div>
   </main>
 </div>
-
 <div id="toast"></div>
-
 <script>
-  let allFiles = [];
-  let activeCategory = 'all';
+  let allFiles=[];
+  let activeCategory='all';
+  const TITLES={all:'All Files',images:'Pictures',documents:'Documents',videos:'Videos',audio:'Audio',others:'Others'};
+  const TYPE_COLOR={PDF:'#e24b4a',DOC:'#185fa5',DOCX:'#185fa5',TXT:'#888780',XLS:'#3b6d11',XLSX:'#3b6d11',CSV:'#3b6d11',PPTX:'#c45c1a',PNG:'#854f0b',JPG:'#854f0b',JPEG:'#854f0b',GIF:'#854f0b',WEBP:'#854f0b',SVG:'#854f0b',MP4:'#993556',MOV:'#993556',AVI:'#993556',MKV:'#993556',MP3:'#3b5998',WAV:'#3b5998',AAC:'#3b5998',FLAC:'#3b5998',ZIP:'#5f5e5a',RAR:'#5f5e5a',JS:'#534ab7',PY:'#185fa5',HTML:'#993556',CSS:'#185fa5'};
+  const IMG_TYPES=['JPG','JPEG','PNG','GIF','WEBP','SVG'];
+  const VID_TYPES=['MP4','MOV','AVI','MKV'];
+  const AUD_TYPES=['MP3','WAV','AAC','FLAC','OGG'];
 
-  const TITLES = {all:'All Files',images:'Pictures',documents:'Documents',videos:'Videos',audio:'Audio',others:'Others'};
-  const TYPE_COLOR = {
-    PDF:'#e24b4a',DOC:'#185fa5',DOCX:'#185fa5',TXT:'#888780',
-    XLS:'#3b6d11',XLSX:'#3b6d11',CSV:'#3b6d11',PPTX:'#c45c1a',
-    PNG:'#854f0b',JPG:'#854f0b',JPEG:'#854f0b',GIF:'#854f0b',WEBP:'#854f0b',SVG:'#854f0b',
-    MP4:'#993556',MOV:'#993556',AVI:'#993556',MKV:'#993556',
-    MP3:'#3b5998',WAV:'#3b5998',AAC:'#3b5998',FLAC:'#3b5998',
-    ZIP:'#5f5e5a',RAR:'#5f5e5a',
-    JS:'#534ab7',PY:'#185fa5',HTML:'#993556',CSS:'#185fa5',
-  };
-
-  function fmt(b){
-    if(b<1024) return b+' B';
-    if(b<1048576) return (b/1024).toFixed(1)+' KB';
-    return (b/1048576).toFixed(2)+' MB';
-  }
+  function fmt(b){if(b<1024)return b+' B';if(b<1048576)return (b/1024).toFixed(1)+' KB';return (b/1048576).toFixed(2)+' MB';}
 
   function toast(msg,err=false){
     const t=document.getElementById('toast');
@@ -215,16 +188,47 @@
     setTimeout(()=>t.className='',2800);
   }
 
+  function getIcon(f){
+    const url='/preview/'+f.category+'/'+encodeURIComponent(f.filename);
+    if(IMG_TYPES.includes(f.file_type)){
+      return '<img class="thumb" src="'+url+'" onclick="openPreview(\''+f.category+'\',\''+encodeURIComponent(f.filename)+'\',\''+f.file_type+'\')" alt="preview"/>';
+    }
+    if(VID_TYPES.includes(f.file_type)){
+      return '<div class="ftype-icon" style="background:'+( TYPE_COLOR[f.file_type]||'#7f77dd')+';cursor:pointer;font-size:20px" onclick="openPreview(\''+f.category+'\',\''+encodeURIComponent(f.filename)+'\',\''+f.file_type+'\')">▶</div>';
+    }
+    if(AUD_TYPES.includes(f.file_type)){
+      return '<div class="ftype-icon" style="background:'+(TYPE_COLOR[f.file_type]||'#7f77dd')+';cursor:pointer;font-size:20px" onclick="openPreview(\''+f.category+'\',\''+encodeURIComponent(f.filename)+'\',\''+f.file_type+'\')">🎵</div>';
+    }
+    return '<div class="ftype-icon" style="background:'+(TYPE_COLOR[f.file_type]||'#7f77dd')+'">'+f.file_type.slice(0,3)+'</div>';
+  }
+
+  function openPreview(category,filename,filetype){
+    const url='/preview/'+category+'/'+filename;
+    const overlay=document.createElement('div');
+    overlay.className='modal-overlay';
+    overlay.onclick=function(e){if(e.target===overlay)document.body.removeChild(overlay);};
+    let content='';
+    if(IMG_TYPES.includes(filetype)){
+      content='<img src="'+url+'" style="max-width:90vw;max-height:90vh;border-radius:8px;object-fit:contain"/>';
+    } else if(VID_TYPES.includes(filetype)){
+      content='<video controls autoplay style="max-width:90vw;max-height:90vh;border-radius:8px"><source src="'+url+'"></video>';
+    } else if(AUD_TYPES.includes(filetype)){
+      content='<div style="background:white;padding:32px;border-radius:12px;text-align:center"><div style="font-size:48px;margin-bottom:16px">🎵</div><audio controls autoplay><source src="'+url+'"></audio></div>';
+    }
+    overlay.innerHTML='<div>'+content+'</div><button class="modal-close" onclick="document.body.removeChild(this.parentElement)">✕</button>';
+    document.body.appendChild(overlay);
+  }
+
   function updateSidebar(files){
     const cats=['images','documents','videos','audio','others'];
     document.getElementById('cnt-all').textContent=files.length;
-    cats.forEach(c=>{
-      const n=files.filter(f=>f.category===c).length;
+    cats.forEach(function(c){
+      const n=files.filter(function(f){return f.category===c;}).length;
       document.getElementById('cnt-'+c).textContent=n;
-      const ccs=document.getElementById('ccs-'+c);
-      if(ccs) ccs.textContent=n+' file'+(n!==1?'s':'');
+      const el=document.getElementById('ccs-'+c);
+      if(el) el.textContent=n+' file'+(n!==1?'s':'');
     });
-    const total=files.reduce((s,f)=>s+f.size,0);
+    const total=files.reduce(function(s,f){return s+f.size;},0);
     const max=100*1024*1024*1024;
     const pct=Math.min((total/max)*100,100);
     document.getElementById('stor-fill').style.width=pct.toFixed(4)+'%';
@@ -240,33 +244,31 @@
       list.innerHTML='<div class="empty-state"><div>☁</div><p>No files here yet — upload something!</p></div>';
       return;
     }
-    list.innerHTML=files.map(f=>`
-      <div class="file-card">
-        <div class="ftype-icon" style="background:${TYPE_COLOR[f.file_type]||'#7f77dd'}">
-          ${f.file_type.slice(0,3)}
-        </div>
-        <div class="finfo">
-          <div class="fname">${f.filename}</div>
-          <div class="fmeta">
-            <span>📦 ${fmt(f.size)}</span>
-            <span>🏷 ${f.file_type}</span>
-            <span>📁 ${f.category}</span>
-            <span>🕒 ${f.uploaded_at}</span>
-            <span>👤 ${f.uploaded_by}</span>
-          </div>
-        </div>
-        <div class="factions">
-          <a href="/download/${f.category}/${encodeURIComponent(f.filename)}" class="btn btn-dl">⬇ Download</a>
-          <button class="btn btn-del" onclick="deleteFile('${f.category}','${f.filename}')">✕ Delete</button>
-        </div>
-      </div>
-    `).join('');
+    list.innerHTML=files.map(function(f){
+      return '<div class="file-card">'+
+        getIcon(f)+
+        '<div class="finfo">'+
+          '<div class="fname">'+f.filename+'</div>'+
+          '<div class="fmeta">'+
+            '<span>📦 '+fmt(f.size)+'</span>'+
+            '<span>🏷 '+f.file_type+'</span>'+
+            '<span>📁 '+f.category+'</span>'+
+            '<span>🕒 '+f.uploaded_at+'</span>'+
+            '<span>👤 '+f.uploaded_by+'</span>'+
+          '</div>'+
+        '</div>'+
+        '<div class="factions">'+
+          '<a href="/download/'+f.category+'/'+encodeURIComponent(f.filename)+'" class="btn btn-dl">⬇ Download</a>'+
+          '<button class="btn btn-del" onclick="deleteFile(\''+f.category+'\',\''+f.filename.replace(/'/g,"\\'")+'\'  )">✕ Delete</button>'+
+        '</div>'+
+      '</div>';
+    }).join('');
   }
 
   function applyFilter(){
     const q=document.getElementById('search-input').value.toLowerCase();
-    let filtered=activeCategory==='all'?allFiles:allFiles.filter(f=>f.category===activeCategory);
-    if(q) filtered=filtered.filter(f=>f.filename.toLowerCase().includes(q));
+    let filtered=activeCategory==='all'?allFiles:allFiles.filter(function(f){return f.category===activeCategory;});
+    if(q) filtered=filtered.filter(function(f){return f.filename.toLowerCase().includes(q);});
     const st=document.getElementById('sec-title');
     if(st) st.textContent=TITLES[activeCategory]||'Files';
     renderFiles(filtered);
@@ -274,8 +276,8 @@
 
   function setCategory(cat,navEl,catEl){
     activeCategory=cat;
-    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-    document.querySelectorAll('.cat-card').forEach(c=>c.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('active');});
+    document.querySelectorAll('.cat-card').forEach(function(c){c.classList.remove('active');});
     if(navEl) navEl.classList.add('active');
     if(catEl) catEl.classList.add('active');
     applyFilter();
@@ -291,7 +293,7 @@
       applyFilter();
     }catch(e){
       console.error(e);
-      toast('Failed to load files: '+e.message, true);
+      toast('Failed to load files: '+e.message,true);
     }
   }
 
@@ -303,7 +305,7 @@
     label.textContent='Uploading '+file.name+'...';
     fill.style.width='0%';
     let p=0;
-    const iv=setInterval(()=>{p=Math.min(p+7,85);fill.style.width=p+'%';},90);
+    const iv=setInterval(function(){p=Math.min(p+7,85);fill.style.width=p+'%';},90);
     const form=new FormData();
     form.append('file',file);
     try{
@@ -311,8 +313,8 @@
       const data=await res.json();
       clearInterval(iv);
       fill.style.width='100%';
-      setTimeout(()=>{wrap.style.display='none';fill.style.width='0%';},500);
-      if(res.ok){toast('✓ '+file.name+' → '+data.category);loadFiles();}
+      setTimeout(function(){wrap.style.display='none';fill.style.width='0%';},500);
+      if(res.ok){toast('✓ '+file.name+' uploaded!');loadFiles();}
       else toast(data.error||'Upload failed',true);
     }catch(e){
       clearInterval(iv);
@@ -330,16 +332,10 @@
   }
 
   const dz=document.getElementById('drop-zone');
-  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
-  dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
-  dz.addEventListener('drop',e=>{
-    e.preventDefault();dz.classList.remove('over');
-    [...e.dataTransfer.files].forEach(uploadFile);
-  });
-  document.getElementById('file-input').addEventListener('change',e=>{
-    [...e.target.files].forEach(uploadFile);
-    e.target.value='';
-  });
+  dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('over');});
+  dz.addEventListener('dragleave',function(){dz.classList.remove('over');});
+  dz.addEventListener('drop',function(e){e.preventDefault();dz.classList.remove('over');Array.from(e.dataTransfer.files).forEach(uploadFile);});
+  document.getElementById('file-input').addEventListener('change',function(e){Array.from(e.target.files).forEach(uploadFile);e.target.value='';});
 
   loadFiles();
 </script>

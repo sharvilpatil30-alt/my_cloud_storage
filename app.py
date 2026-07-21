@@ -12,10 +12,8 @@ app.secret_key = os.environ.get('SECRET_KEY', 'sharvil-cloud-secret-2025')
 UPLOAD_FOLDER = 'uploads'
 MAX_EXTRA_USERS = 5
 
-# 2GB global max (for videos)
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024
 
-# Per category size limits
 CATEGORY_LIMITS = {
     'images':    50  * 1024 * 1024,
     'videos':    2   * 1024 * 1024 * 1024,
@@ -49,7 +47,6 @@ def get_category(filename):
             return category
     return 'others'
 
-# ── Database ──────────────────────────────────────────────────────
 def get_db():
     conn = sqlite3.connect('database.db')
     conn.row_factory = sqlite3.Row
@@ -57,26 +54,20 @@ def get_db():
 
 def init_db():
     conn = get_db()
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS files (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            filename    TEXT NOT NULL,
-            size        INTEGER NOT NULL,
-            file_type   TEXT NOT NULL,
-            category    TEXT NOT NULL,
-            uploaded_at TEXT NOT NULL,
-            uploaded_by TEXT NOT NULL
-        )
-    ''')
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            username      TEXT NOT NULL UNIQUE,
-            password_hash TEXT NOT NULL,
-            is_admin      INTEGER DEFAULT 0,
-            created_at    TEXT NOT NULL
-        )
-    ''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS files (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        filename TEXT NOT NULL,
+        size INTEGER NOT NULL,
+        file_type TEXT NOT NULL,
+        category TEXT NOT NULL,
+        uploaded_at TEXT NOT NULL,
+        uploaded_by TEXT NOT NULL)''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        is_admin INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL)''')
     conn.commit()
     existing = conn.execute("SELECT * FROM users WHERE username='sharvil'").fetchone()
     if not existing:
@@ -99,22 +90,19 @@ def sync_files_to_db():
                 continue
             existing = conn.execute(
                 "SELECT id FROM files WHERE filename=? AND category=?",
-                (filename, cat)
-            ).fetchone()
+                (filename, cat)).fetchone()
             if not existing:
-                size      = os.path.getsize(filepath)
+                size = os.path.getsize(filepath)
                 file_type = filename.rsplit('.', 1)[-1].upper() if '.' in filename else 'UNKNOWN'
                 conn.execute(
                     "INSERT INTO files (filename, size, file_type, category, uploaded_at, uploaded_by) VALUES (?,?,?,?,?,?)",
-                    (filename, size, file_type, cat, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'sharvil')
-                )
+                    (filename, size, file_type, cat, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'sharvil'))
     conn.commit()
     conn.close()
 
 init_db()
 sync_files_to_db()
 
-# ── Auth ──────────────────────────────────────────────────────────
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -165,8 +153,7 @@ def register():
             else:
                 conn.execute(
                     "INSERT INTO users (username, password_hash, is_admin, created_at) VALUES (?,?,?,?)",
-                    (username, generate_password_hash(password), 0, datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-                )
+                    (username, generate_password_hash(password), 0, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
                 conn.commit()
                 conn.close()
                 return redirect(url_for('login'))
@@ -179,7 +166,6 @@ def logout():
     session.pop('username', None)
     return redirect(url_for('login'))
 
-# ── Main routes ───────────────────────────────────────────────────
 @app.route('/')
 @login_required
 def home():
@@ -198,46 +184,28 @@ def upload_file():
     file = request.files['file']
     if file.filename == '':
         return jsonify({'error': 'No file selected'}), 400
-
     category    = get_category(file.filename)
     folder_path = os.path.join(UPLOAD_FOLDER, category)
     file_path   = os.path.join(folder_path, file.filename)
-
-    file_data = file.read()
-    file_size = len(file_data)
-
+    file_data   = file.read()
+    file_size   = len(file_data)
     limit = CATEGORY_LIMITS.get(category, 100 * 1024 * 1024)
     label = CATEGORY_LIMIT_LABELS.get(category, '100 MB')
     if file_size > limit:
-        return jsonify({
-            'error': f'{category.capitalize()} files are limited to {label}. Your file is {round(file_size/(1024*1024), 1)} MB.'
-        }), 413
-
+        return jsonify({'error': f'{category.capitalize()} files are limited to {label}. Your file is {round(file_size/(1024*1024),1)} MB.'}), 413
     with open(file_path, 'wb') as f:
         f.write(file_data)
-
     file_type   = file.filename.rsplit('.', 1)[-1].upper() if '.' in file.filename else 'UNKNOWN'
     uploaded_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     uploaded_by = session['username']
-
     conn = get_db()
     conn.execute("DELETE FROM files WHERE filename=? AND category=?", (file.filename, category))
     conn.execute(
         "INSERT INTO files (filename, size, file_type, category, uploaded_at, uploaded_by) VALUES (?,?,?,?,?,?)",
-        (file.filename, file_size, file_type, category, uploaded_at, uploaded_by)
-    )
+        (file.filename, file_size, file_type, category, uploaded_at, uploaded_by))
     conn.commit()
     conn.close()
-
-    return jsonify({
-        'message':     'Uploaded!',
-        'filename':    file.filename,
-        'size':        file_size,
-        'file_type':   file_type,
-        'category':    category,
-        'uploaded_at': uploaded_at,
-        'uploaded_by': uploaded_by
-    }), 200
+    return jsonify({'message':'Uploaded!','filename':file.filename,'size':file_size,'file_type':file_type,'category':category,'uploaded_at':uploaded_at,'uploaded_by':uploaded_by}), 200
 
 @app.route('/files', methods=['GET'])
 @login_required
@@ -247,24 +215,20 @@ def list_files():
     if category == 'all':
         rows = conn.execute('SELECT * FROM files ORDER BY uploaded_at DESC').fetchall()
     else:
-        rows = conn.execute(
-            'SELECT * FROM files WHERE category=? ORDER BY uploaded_at DESC', (category,)
-        ).fetchall()
+        rows = conn.execute('SELECT * FROM files WHERE category=? ORDER BY uploaded_at DESC', (category,)).fetchall()
     conn.close()
     files = []
     for row in rows:
         path = os.path.join(UPLOAD_FOLDER, row['category'], row['filename'])
         if os.path.exists(path):
-            files.append({
-                'id':          row['id'],
-                'filename':    row['filename'],
-                'size':        row['size'],
-                'file_type':   row['file_type'],
-                'category':    row['category'],
-                'uploaded_at': row['uploaded_at'],
-                'uploaded_by': row['uploaded_by']
-            })
+            files.append({'id':row['id'],'filename':row['filename'],'size':row['size'],'file_type':row['file_type'],'category':row['category'],'uploaded_at':row['uploaded_at'],'uploaded_by':row['uploaded_by']})
     return jsonify({'files': files}), 200
+
+@app.route('/preview/<category>/<filename>')
+@login_required
+def preview_file(category, filename):
+    folder = os.path.join(os.getcwd(), UPLOAD_FOLDER, category)
+    return send_from_directory(folder, filename)
 
 @app.route('/download/<category>/<filename>')
 @login_required
